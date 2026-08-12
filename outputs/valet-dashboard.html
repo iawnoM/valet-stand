@@ -1,0 +1,1392 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Valet Dashboard</title>
+  <style>
+    :root {
+      --bg: #08111f;
+      --panel: rgba(10, 18, 34, 0.92);
+      --panel-2: rgba(15, 26, 47, 0.96);
+      --text: #edf4ff;
+      --muted: #9cafcc;
+      --border: rgba(186, 208, 255, 0.14);
+      --shadow: 0 22px 70px rgba(0, 0, 0, 0.34);
+      --accent: #77e6ff;
+      --accent-2: #7af0bf;
+      --parked: #f0c15a;
+      --transit: #68cfff;
+      --completed: #64d49a;
+      --danger: #ff7f7f;
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "Trebuchet MS", "Segoe UI", "Avenir Next", Arial, sans-serif;
+      background: linear-gradient(160deg, #050a13 0%, var(--bg) 48%, #08101c 100%);
+      color: var(--text);
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 28px 18px 42px;
+    }
+
+    .topbar {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding: 22px 24px;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: linear-gradient(135deg, rgba(17, 29, 51, 0.96), rgba(9, 15, 28, 0.94));
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+
+    .summary {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .summary-label {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.78rem;
+    }
+
+    .summary-value {
+      font-size: clamp(2rem, 4.5vw, 3.6rem);
+      line-height: 0.96;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+    }
+
+    .primary-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: stretch;
+      width: 100%;
+    }
+
+    .action-button {
+      min-width: 170px;
+      padding: 16px 18px;
+      border-radius: 16px;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      transition: transform 160ms ease, filter 160ms ease, border-color 160ms ease;
+    }
+
+    .action-button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+    }
+
+    .action-button.primary {
+      color: #05101e;
+      background: linear-gradient(135deg, #88ecff, #7af0bf);
+      box-shadow: 0 12px 28px rgba(122, 240, 191, 0.18);
+    }
+
+    .action-button.secondary {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(186, 208, 255, 0.16);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-button {
+      padding: 10px 14px;
+      border-radius: 999px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(186, 208, 255, 0.14);
+      transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+    }
+
+    .filter-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(103, 223, 255, 0.32);
+    }
+
+    .filter-button.active {
+      background: rgba(103, 223, 255, 0.14);
+      border-color: rgba(103, 223, 255, 0.34);
+      color: #d8f8ff;
+    }
+
+    .sort-hint {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .board {
+      display: grid;
+      gap: 16px;
+    }
+
+    .status-group {
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      overflow: hidden;
+      background: var(--panel-2);
+      box-shadow: var(--shadow);
+    }
+
+    .status-group summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 20px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
+      border-bottom: 1px solid rgba(186, 208, 255, 0.08);
+      cursor: pointer;
+    }
+
+    .status-group summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .summary-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .chevron {
+      width: 14px;
+      height: 14px;
+      border-right: 2px solid var(--muted);
+      border-bottom: 2px solid var(--muted);
+      transform: rotate(45deg);
+      transition: transform 160ms ease;
+      margin-top: -2px;
+    }
+
+    details[open] .chevron {
+      transform: rotate(-135deg);
+      margin-top: 4px;
+    }
+
+    .group-title {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .group-title strong {
+      font-size: 1.04rem;
+      letter-spacing: -0.03em;
+    }
+
+    .group-title span {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .count-pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      white-space: nowrap;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    .ticket-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 920px;
+    }
+
+    .ticket-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: rgba(8, 16, 29, 0.94);
+      backdrop-filter: blur(10px);
+      text-align: left;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(186, 208, 255, 0.1);
+    }
+
+    .sortable {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: inherit;
+      background: transparent;
+      padding: 0;
+      border: 0;
+      text-transform: inherit;
+      letter-spacing: inherit;
+      font-size: inherit;
+      font-weight: inherit;
+    }
+
+    .sort-arrow {
+      font-size: 0.82rem;
+      opacity: 0.75;
+    }
+
+    .ticket-table tbody tr {
+      border-bottom: 1px solid rgba(186, 208, 255, 0.08);
+    }
+
+    .ticket-table tbody tr:last-child {
+      border-bottom: 0;
+    }
+
+    .ticket-table td {
+      vertical-align: top;
+      padding: 16px 18px;
+      color: var(--text);
+    }
+
+    .ticket-number {
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      font-size: 1.04rem;
+    }
+
+    .subtext {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.45;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status-parked { background: rgba(240, 193, 90, 0.16); color: #ffe3a3; }
+    .status-transit { background: rgba(104, 207, 255, 0.16); color: #c6f0ff; }
+    .status-completed { background: rgba(100, 212, 154, 0.16); color: #caffde; }
+
+    .status-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .action-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .mini-button {
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(186, 208, 255, 0.14);
+      transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+    }
+
+    .mini-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(103, 223, 255, 0.28);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .mini-button.success {
+      background: rgba(100, 212, 154, 0.14);
+      border-color: rgba(100, 212, 154, 0.24);
+    }
+
+    .mini-button.primary {
+      background: rgba(104, 207, 255, 0.14);
+      border-color: rgba(104, 207, 255, 0.24);
+    }
+
+    .mini-button.danger {
+      background: rgba(255, 127, 127, 0.12);
+      border-color: rgba(255, 127, 127, 0.24);
+    }
+
+    .empty-state {
+      padding: 18px 20px;
+      color: var(--muted);
+      border: 1px dashed rgba(186, 208, 255, 0.22);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.02);
+      margin: 14px 18px 18px;
+    }
+
+    .message {
+      min-height: 24px;
+      margin: 0 0 14px;
+      color: var(--muted);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(2, 7, 15, 0.72);
+      backdrop-filter: blur(8px);
+    }
+
+    .modal-panel {
+      width: min(1120px, 100%);
+      max-height: min(90vh, 980px);
+      overflow: auto;
+      border-radius: 28px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(15, 26, 47, 0.99), rgba(9, 15, 28, 0.99));
+      box-shadow: var(--shadow);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px;
+      border-bottom: 1px solid rgba(186, 208, 255, 0.08);
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      letter-spacing: -0.03em;
+    }
+
+    .icon-button {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(186, 208, 255, 0.14);
+      font-size: 1.4rem;
+      line-height: 1;
+    }
+
+    .modal-body {
+      display: grid;
+      grid-template-columns: 1fr 1.1fr;
+      gap: 0;
+    }
+
+    .modal-section {
+      padding: 18px 20px 20px;
+    }
+
+    .modal-section + .modal-section {
+      border-left: 1px solid rgba(186, 208, 255, 0.08);
+    }
+
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .field input {
+      width: 100%;
+      border-radius: 14px;
+      padding: 14px 14px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(186, 208, 255, 0.14);
+      outline: none;
+      transition: border-color 150ms ease, background 150ms ease;
+    }
+
+    .field input:focus {
+      border-color: rgba(103, 223, 255, 0.7);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .form-note {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .list-search {
+      width: 100%;
+      margin-bottom: 14px;
+    }
+
+    .ticket-picker {
+      display: grid;
+      gap: 8px;
+      max-height: 440px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .ticket-choice {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      text-align: left;
+      padding: 12px 14px;
+      border-radius: 16px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(186, 208, 255, 0.12);
+      transition: border-color 150ms ease, transform 150ms ease, background 150ms ease;
+    }
+
+    .ticket-choice:hover {
+      transform: translateY(-1px);
+      border-color: rgba(103, 223, 255, 0.28);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .ticket-choice.active {
+      border-color: rgba(103, 223, 255, 0.42);
+      background: rgba(103, 223, 255, 0.1);
+    }
+
+    .ticket-choice strong {
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+    }
+
+    .ticket-choice span {
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .modal-footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 18px;
+    }
+
+    .footer-button {
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    .footer-button.primary {
+      color: #05101e;
+      background: linear-gradient(135deg, #88ecff, #7af0bf);
+    }
+
+    .footer-button.secondary {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(186, 208, 255, 0.14);
+    }
+
+    .footer-button:disabled,
+    .mini-button:disabled,
+    .action-button:disabled,
+    .filter-button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    @media (max-width: 1024px) {
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+
+      .modal-body {
+        grid-template-columns: 1fr;
+      }
+
+      .modal-section + .modal-section {
+        border-left: 0;
+        border-top: 1px solid rgba(186, 208, 255, 0.08);
+      }
+    }
+
+    @media (max-width: 720px) {
+      .app {
+        padding: 18px 12px 28px;
+      }
+
+      .topbar,
+      .status-group,
+      .modal-panel {
+        border-radius: 20px;
+      }
+
+      .action-button {
+        min-width: 0;
+        flex: 1 1 100%;
+      }
+
+      .primary-actions,
+      .filters {
+        width: 100%;
+      }
+
+      .ticket-table {
+        min-width: 820px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="topbar" aria-label="dashboard summary">
+      <div class="summary">
+        <div class="summary-label">Ticket count</div>
+        <div class="summary-value" id="ticketCount">0</div>
+      </div>
+
+      <div class="primary-actions">
+        <button class="action-button primary" id="openAdd">Add Car</button>
+        <button class="action-button secondary" id="openEdit">Edit Current Car</button>
+      </div>
+    </section>
+
+    <div class="toolbar" aria-label="table controls">
+      <div class="filters" role="tablist" aria-label="status filters">
+        <button class="filter-button active" data-filter="all" type="button">All</button>
+        <button class="filter-button" data-filter="parked" type="button">Parked</button>
+        <button class="filter-button" data-filter="transit" type="button">In transit</button>
+        <button class="filter-button" data-filter="completed" type="button">Completed</button>
+      </div>
+      <div class="sort-hint" id="sortHint">Sorted by Ticket # ascending</div>
+    </div>
+
+    <p class="message" id="message" role="status" aria-live="polite"></p>
+
+    <section class="board" id="board" aria-label="car list"></section>
+  </main>
+
+  <div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2 id="modalTitle">Add Car</h2>
+        <button class="icon-button" id="closeModal" type="button" aria-label="Close modal">x</button>
+      </div>
+      <div class="modal-body">
+        <section class="modal-section">
+          <div class="section-title" id="modalSideTitle">Create car</div>
+          <form class="form-grid" id="carForm">
+            <div class="field">
+              <label for="ticketNumber">Ticket number</label>
+              <input id="ticketNumber" name="ticketNumber" type="text" placeholder="Enter ticket number" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="outlet">Outlet</label>
+              <input id="outlet" name="outlet" type="text" placeholder="Outlet name" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="parkedBy">Parked by</label>
+              <input id="parkedBy" name="parkedBy" type="text" placeholder="Associate name" autocomplete="off" />
+            </div>
+            <div class="form-note" id="formNote">New cars start in parked status.</div>
+
+            <div class="modal-footer">
+              <button class="footer-button secondary" id="cancelAction" type="button">Cancel</button>
+              <button class="footer-button primary" id="saveCar" type="submit">Save Car</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="modal-section" id="editPanel">
+          <div class="section-title">Edit current car</div>
+          <input class="list-search" id="editSearch" type="text" placeholder="Search by ticket number, outlet, or parked by" autocomplete="off" />
+          <div class="ticket-picker" id="ticketPicker"></div>
+          <div class="form-note" id="pickerNote">Select a car to edit its ticket number, outlet, or parked-by details.</div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <template id="groupTemplate">
+    <details class="status-group" open>
+      <summary>
+        <div class="summary-left">
+          <span class="chevron" aria-hidden="true"></span>
+          <div class="group-title">
+            <strong class="group-name"></strong>
+            <span class="group-note"></span>
+          </div>
+        </div>
+        <span class="count-pill"></span>
+      </summary>
+      <div class="table-wrap">
+        <table class="ticket-table">
+          <thead>
+            <tr>
+              <th><button class="sortable" data-sort="number" type="button">Ticket # <span class="sort-arrow"></span></button></th>
+              <th><button class="sortable" data-sort="status" type="button">Status <span class="sort-arrow"></span></button></th>
+              <th><button class="sortable" data-sort="outlet" type="button">Outlet <span class="sort-arrow"></span></button></th>
+              <th><button class="sortable" data-sort="parkedBy" type="button">Parked By <span class="sort-arrow"></span></button></th>
+              <th><button class="sortable" data-sort="updatedAt" type="button">Last Updated <span class="sort-arrow"></span></button></th>
+            </tr>
+          </thead>
+          <tbody class="rows"></tbody>
+        </table>
+      </div>
+    </details>
+  </template>
+
+  <script>
+    const STORAGE_KEY = "valet-dashboard-tickets";
+    const FALLBACK_STORAGE_KEY = "valet-tracker-tickets";
+    const STATUS_ORDER = { parked: 0, transit: 1, completed: 2 };
+    const STATUS_LABELS = {
+      parked: "Parked",
+      transit: "In transit",
+      completed: "Completed",
+    };
+
+    const elements = {
+      board: document.getElementById("board"),
+      ticketCount: document.getElementById("ticketCount"),
+      message: document.getElementById("message"),
+      sortHint: document.getElementById("sortHint"),
+      openAdd: document.getElementById("openAdd"),
+      openEdit: document.getElementById("openEdit"),
+      modal: document.getElementById("modal"),
+      modalTitle: document.getElementById("modalTitle"),
+      modalSideTitle: document.getElementById("modalSideTitle"),
+      closeModal: document.getElementById("closeModal"),
+      cancelAction: document.getElementById("cancelAction"),
+      carForm: document.getElementById("carForm"),
+      ticketNumber: document.getElementById("ticketNumber"),
+      outlet: document.getElementById("outlet"),
+      parkedBy: document.getElementById("parkedBy"),
+      saveCar: document.getElementById("saveCar"),
+      editPanel: document.getElementById("editPanel"),
+      editSearch: document.getElementById("editSearch"),
+      ticketPicker: document.getElementById("ticketPicker"),
+      groupTemplate: document.getElementById("groupTemplate"),
+      filters: Array.from(document.querySelectorAll(".filter-button")),
+    };
+
+    let tickets = loadTickets();
+    let activeFilter = "all";
+    let sortKey = "number";
+    let sortDirection = "asc";
+    let modalMode = "add";
+    let selectedTicketId = null;
+    let searchQuery = "";
+
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+    function makeId() {
+      if (window.crypto && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+      return `ticket_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    }
+
+    function loadTickets() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          return normalizeLoadedTickets(JSON.parse(raw) ?? []);
+        }
+        const fallback = localStorage.getItem(FALLBACK_STORAGE_KEY);
+        if (fallback) {
+          return normalizeLoadedTickets(JSON.parse(fallback) ?? []);
+        }
+      } catch {
+        return [];
+      }
+      return [];
+    }
+
+    function normalizeLoadedTickets(list) {
+      return list
+        .filter(Boolean)
+        .map((ticket) => ({
+          id: ticket.id || makeId(),
+          number: normalizeTicketNumber(ticket.number),
+          outlet: normalizeText(ticket.outlet),
+          parkedBy: normalizeText(ticket.parkedBy),
+          status: STATUS_ORDER.hasOwnProperty(ticket.status) ? ticket.status : "parked",
+          createdAt: normalizeTimestamp(ticket.createdAt),
+          updatedAt: normalizeTimestamp(ticket.updatedAt),
+        }))
+        .filter((ticket) => ticket.number);
+    }
+
+    function normalizeTimestamp(value) {
+      if (!value) return new Date().toISOString();
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+    }
+
+    function saveTickets() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets));
+    }
+
+    function normalizeText(value) {
+      return (value ?? "").toString().trim();
+    }
+
+    function normalizeTicketNumber(value) {
+      return normalizeText(value).replace(/\s+/g, " ").toUpperCase();
+    }
+
+    function statusLabel(status) {
+      return STATUS_LABELS[status] ?? "Parked";
+    }
+
+    function formatDate(value) {
+      if (!value) return "-";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return String(value);
+      }
+      return date.toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }
+
+    function setMessage(text, tone = "info") {
+      elements.message.textContent = text;
+      elements.message.style.color =
+        tone === "error" ? "#ffb6b6" :
+        tone === "success" ? "#c7f9d9" :
+        "var(--muted)";
+    }
+
+    function closeModal() {
+      elements.modal.classList.add("hidden");
+      elements.carForm.reset();
+      elements.editSearch.value = "";
+      selectedTicketId = null;
+      searchQuery = "";
+    }
+
+    function openModal(mode) {
+      modalMode = mode;
+      elements.modal.classList.remove("hidden");
+      elements.modalTitle.textContent = mode === "add" ? "Add Car" : "Edit Current Car";
+      elements.modalSideTitle.textContent = mode === "add" ? "Create car" : "Edit car";
+      elements.editPanel.classList.toggle("hidden", mode !== "edit");
+      elements.saveCar.textContent = mode === "add" ? "Save Car" : "Update Car";
+
+      if (mode === "add") {
+        elements.ticketNumber.value = "";
+        elements.outlet.value = "";
+        elements.parkedBy.value = "";
+        selectedTicketId = null;
+        requestAnimationFrame(() => elements.ticketNumber.focus());
+      } else {
+        if (tickets.length > 0 && !selectedTicketId) {
+          selectedTicketId = sortTickets([...tickets])[0]?.id ?? null;
+        }
+        renderTicketPicker();
+        if (selectedTicketId) {
+          populateEditForm(selectedTicketId);
+        } else {
+          elements.carForm.reset();
+        }
+        requestAnimationFrame(() => elements.editSearch.focus());
+      }
+    }
+
+    function openAddFlow() {
+      openModal("add");
+    }
+
+    function openEditFlow() {
+      openModal("edit");
+    }
+
+    function upsertTicket(ticket) {
+      const existingIndex = tickets.findIndex((item) => item.id === ticket.id);
+      if (existingIndex >= 0) {
+        tickets[existingIndex] = ticket;
+      } else {
+        tickets.unshift(ticket);
+      }
+      saveTickets();
+      render();
+    }
+
+    function createTicketFromForm() {
+      const number = normalizeTicketNumber(elements.ticketNumber.value);
+      const outlet = normalizeText(elements.outlet.value);
+      const parkedBy = normalizeText(elements.parkedBy.value);
+
+      if (!number) {
+        setMessage("Enter a ticket number before saving.", "error");
+        return null;
+      }
+
+      return {
+        id: makeId(),
+        number,
+        outlet,
+        parkedBy,
+        status: "parked",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    function handleSave(event) {
+      event.preventDefault();
+
+      if (modalMode === "add") {
+        const ticket = createTicketFromForm();
+        if (!ticket) return;
+
+        if (tickets.some((item) => item.number === ticket.number)) {
+          setMessage(`Ticket ${ticket.number} already exists.`, "error");
+          return;
+        }
+
+        tickets.unshift(ticket);
+        saveTickets();
+        render();
+        setMessage(`Ticket ${ticket.number} added.`, "success");
+        closeModal();
+        return;
+      }
+
+      if (!selectedTicketId) {
+        setMessage("Select a car to edit first.", "error");
+        return;
+      }
+
+      const number = normalizeTicketNumber(elements.ticketNumber.value);
+      const outlet = normalizeText(elements.outlet.value);
+      const parkedBy = normalizeText(elements.parkedBy.value);
+
+      if (!number) {
+        setMessage("Ticket number cannot be empty.", "error");
+        return;
+      }
+
+      if (tickets.some((item) => item.id !== selectedTicketId && item.number === number)) {
+        setMessage(`Ticket ${number} already exists.`, "error");
+        return;
+      }
+
+      tickets = tickets.map((item) => (
+        item.id === selectedTicketId
+          ? {
+              ...item,
+              number,
+              outlet,
+              parkedBy,
+              updatedAt: new Date().toISOString(),
+            }
+          : item
+      ));
+
+      saveTickets();
+      render();
+      setMessage(`Ticket ${number} updated.`, "success");
+      closeModal();
+    }
+
+    function setStatus(id, status) {
+      tickets = tickets.map((item) => (
+        item.id === id
+          ? { ...item, status, updatedAt: new Date().toISOString() }
+          : item
+      ));
+      saveTickets();
+      render();
+      setMessage(`Ticket moved to ${statusLabel(status)}.`, "success");
+    }
+
+    function populateEditForm(id) {
+      const ticket = tickets.find((item) => item.id === id);
+      if (!ticket) return;
+      selectedTicketId = id;
+      elements.ticketNumber.value = ticket.number ?? "";
+      elements.outlet.value = ticket.outlet ?? "";
+      elements.parkedBy.value = ticket.parkedBy ?? "";
+      renderTicketPicker();
+    }
+
+    function ticketMatchesSearch(ticket) {
+      const haystack = [
+        ticket.number,
+        ticket.outlet,
+        ticket.parkedBy,
+        statusLabel(ticket.status),
+      ].join(" ").toLowerCase();
+      return haystack.includes(searchQuery.toLowerCase());
+    }
+
+    function sortValue(ticket, key) {
+      switch (key) {
+        case "status":
+          return STATUS_ORDER[ticket.status] ?? 99;
+        case "outlet":
+          return ticket.outlet || "";
+        case "parkedBy":
+          return ticket.parkedBy || "";
+        case "updatedAt":
+          return ticket.updatedAt || "";
+        case "number":
+        default:
+          return ticket.number || "";
+      }
+    }
+
+    function compareTickets(a, b) {
+      const aValue = sortValue(a, sortKey);
+      const bValue = sortValue(b, sortKey);
+
+      let result;
+      if (sortKey === "status") {
+        result = Number(aValue) - Number(bValue);
+      } else if (sortKey === "updatedAt") {
+        result = new Date(aValue).getTime() - new Date(bValue).getTime();
+      } else {
+        result = collator.compare(String(aValue), String(bValue));
+      }
+
+      if (result === 0 && sortKey !== "number") {
+        result = collator.compare(String(a.number), String(b.number));
+      }
+
+      return sortDirection === "asc" ? result : -result;
+    }
+
+    function sortTickets(list) {
+      return [...list].sort(compareTickets);
+    }
+
+    function currentTickets() {
+      let list = [...tickets];
+
+      if (activeFilter !== "all") {
+        list = list.filter((ticket) => ticket.status === activeFilter);
+      }
+
+      return sortTickets(list);
+    }
+
+    function createRow(ticket) {
+      const row = document.createElement("tr");
+
+      const numberCell = document.createElement("td");
+      numberCell.innerHTML = `<span class="ticket-number">${escapeHtml(ticket.number)}</span>`;
+
+      const statusCell = document.createElement("td");
+      statusCell.innerHTML = `<span class="status-badge status-${ticket.status}">${statusLabel(ticket.status)}</span>`;
+
+      const outletCell = document.createElement("td");
+      outletCell.textContent = ticket.outlet || "-";
+
+      const parkedByCell = document.createElement("td");
+      parkedByCell.textContent = ticket.parkedBy || "-";
+
+      const updatedCell = document.createElement("td");
+      const updatedWrap = document.createElement("div");
+      updatedWrap.className = "status-cell";
+      updatedWrap.innerHTML = `<span>${formatDate(ticket.updatedAt)}</span>`;
+
+      const actions = document.createElement("div");
+      actions.className = "action-group";
+
+      if (ticket.status === "parked") {
+        const moveTransit = document.createElement("button");
+        moveTransit.type = "button";
+        moveTransit.className = "mini-button primary";
+        moveTransit.textContent = "Send to transit";
+        moveTransit.addEventListener("click", () => setStatus(ticket.id, "transit"));
+        actions.appendChild(moveTransit);
+      }
+
+      if (ticket.status === "transit") {
+        const backToParked = document.createElement("button");
+        backToParked.type = "button";
+        backToParked.className = "mini-button";
+        backToParked.textContent = "Back to parked";
+        backToParked.addEventListener("click", () => setStatus(ticket.id, "parked"));
+
+        const complete = document.createElement("button");
+        complete.type = "button";
+        complete.className = "mini-button success";
+        complete.textContent = "Mark completed";
+        complete.addEventListener("click", () => setStatus(ticket.id, "completed"));
+
+        actions.appendChild(backToParked);
+        actions.appendChild(complete);
+      }
+
+      if (ticket.status === "completed") {
+        const reopen = document.createElement("button");
+        reopen.type = "button";
+        reopen.className = "mini-button danger";
+        reopen.textContent = "Reopen parked";
+        reopen.addEventListener("click", () => setStatus(ticket.id, "parked"));
+        actions.appendChild(reopen);
+      }
+
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "mini-button";
+      edit.textContent = "Edit";
+      edit.addEventListener("click", () => {
+        selectedTicketId = ticket.id;
+        openModal("edit");
+        populateEditForm(ticket.id);
+      });
+      actions.appendChild(edit);
+
+      updatedWrap.appendChild(actions);
+      updatedCell.appendChild(updatedWrap);
+
+      row.appendChild(numberCell);
+      row.appendChild(statusCell);
+      row.appendChild(outletCell);
+      row.appendChild(parkedByCell);
+      row.appendChild(updatedCell);
+
+      return row;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function renderTicketPicker() {
+      const matches = tickets.filter(ticketMatchesSearch);
+      const sorted = sortTickets(matches);
+
+      elements.ticketPicker.innerHTML = "";
+
+      if (sorted.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = tickets.length === 0
+          ? "No cars yet. Add one first, then you can edit it here."
+          : "No cars match that search.";
+        elements.ticketPicker.appendChild(empty);
+        return;
+      }
+
+      sorted.forEach((ticket) => {
+        const choice = document.createElement("button");
+        choice.type = "button";
+        choice.className = `ticket-choice${ticket.id === selectedTicketId ? " active" : ""}`;
+        choice.innerHTML = `
+          <strong>${escapeHtml(ticket.number)}</strong>
+          <span>${statusLabel(ticket.status)}${ticket.outlet ? ` | ${escapeHtml(ticket.outlet)}` : ""}${ticket.parkedBy ? ` | ${escapeHtml(ticket.parkedBy)}` : ""}</span>
+        `;
+        choice.addEventListener("click", () => {
+          selectedTicketId = ticket.id;
+          populateEditForm(ticket.id);
+          setMessage(`Editing ticket ${ticket.number}.`, "success");
+        });
+        elements.ticketPicker.appendChild(choice);
+      });
+    }
+
+    function renderHeaderSortState() {
+      const headers = document.querySelectorAll(".sortable");
+      headers.forEach((header) => {
+        const key = header.dataset.sort;
+        const arrow = header.querySelector(".sort-arrow");
+        if (key === sortKey) {
+          arrow.textContent = sortDirection === "asc" ? "^" : "v";
+          header.setAttribute("aria-sort", sortDirection === "asc" ? "ascending" : "descending");
+        } else {
+          arrow.textContent = "";
+          header.removeAttribute("aria-sort");
+        }
+      });
+
+      const directionLabel = sortDirection === "asc" ? "ascending" : "descending";
+      elements.sortHint.textContent = `Sorted by ${sortLabel(sortKey)} ${directionLabel}`;
+    }
+
+    function sortLabel(key) {
+      switch (key) {
+        case "status": return "Status";
+        case "outlet": return "Outlet";
+        case "parkedBy": return "Parked By";
+        case "updatedAt": return "Last Updated";
+        case "number":
+        default: return "Ticket #";
+      }
+    }
+
+    function renderBoard() {
+      elements.board.innerHTML = "";
+
+      const list = currentTickets();
+
+      if (activeFilter === "all") {
+        const sections = [
+          { status: "parked", title: "Parked", note: "Cars currently waiting in the lot." },
+          { status: "transit", title: "In transit", note: "Cars actively being retrieved." },
+          { status: "completed", title: "Completed", note: "Cars already handed off." },
+        ];
+
+        sections.forEach((section) => {
+          const group = elements.groupTemplate.content.firstElementChild.cloneNode(true);
+          const rows = group.querySelector(".rows");
+          const groupName = group.querySelector(".group-name");
+          const groupNote = group.querySelector(".group-note");
+          const countPill = group.querySelector(".count-pill");
+          const statusRows = sortTickets(tickets.filter((ticket) => ticket.status === section.status));
+
+          groupName.textContent = section.title;
+          groupNote.textContent = section.note;
+          countPill.textContent = `${statusRows.length} ticket${statusRows.length === 1 ? "" : "s"}`;
+
+          if (statusRows.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "empty-state";
+            empty.textContent = `No ${section.title.toLowerCase()} tickets yet.`;
+            group.appendChild(empty);
+            elements.board.appendChild(group);
+            return;
+          }
+
+          statusRows.forEach((ticket) => rows.appendChild(createRow(ticket)));
+          renderGroupSortHeaders(group);
+          elements.board.appendChild(group);
+        });
+
+        renderHeaderSortState();
+        return;
+      }
+
+      const singleGroup = document.createElement("section");
+      singleGroup.className = "status-group";
+      const header = document.createElement("div");
+      header.style.padding = "18px 20px";
+      header.style.borderBottom = "1px solid rgba(186, 208, 255, 0.08)";
+      header.style.display = "flex";
+      header.style.alignItems = "center";
+      header.style.justifyContent = "space-between";
+      header.style.gap = "12px";
+      header.innerHTML = `
+        <div class="summary-left">
+          <div class="group-title">
+            <strong>${statusLabel(activeFilter)}</strong>
+            <span>Filtered view</span>
+          </div>
+        </div>
+        <span class="count-pill">${list.length} ticket${list.length === 1 ? "" : "s"}</span>
+      `;
+
+      const wrap = document.createElement("div");
+      wrap.className = "table-wrap";
+      wrap.innerHTML = `
+        <table class="ticket-table">
+          <thead>
+            <tr>
+              <th><button class="sortable" data-sort="number" type="button">Ticket # <span class="sort-arrow"></span></button></th>
+              <th><button class="sortable" data-sort="status" type="button">Status <span class="sort-arrow"></span></button></th>
+              <th><button class="sortable" data-sort="outlet" type="button">Outlet <span class="sort-arrow"></span></button></th>
+              <th><button class="sortable" data-sort="parkedBy" type="button">Parked By <span class="sort-arrow"></span></button></th>
+              <th><button class="sortable" data-sort="updatedAt" type="button">Last Updated <span class="sort-arrow"></span></button></th>
+            </tr>
+          </thead>
+          <tbody class="rows"></tbody>
+        </table>
+      `;
+
+      const rows = wrap.querySelector(".rows");
+      list.forEach((ticket) => rows.appendChild(createRow(ticket)));
+
+      singleGroup.appendChild(header);
+      if (list.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = `No ${statusLabel(activeFilter).toLowerCase()} tickets found for this filter.`;
+        singleGroup.appendChild(empty);
+      } else {
+        singleGroup.appendChild(wrap);
+      }
+
+      elements.board.appendChild(singleGroup);
+      renderHeaderSortState();
+      renderSingleGroupSortHeaders(singleGroup);
+    }
+
+    function renderGroupSortHeaders(group) {
+      const buttons = group.querySelectorAll(".sortable");
+      buttons.forEach((button) => {
+        const key = button.dataset.sort;
+        const arrow = button.querySelector(".sort-arrow");
+        if (key === sortKey) {
+          arrow.textContent = sortDirection === "asc" ? "^" : "v";
+          button.setAttribute("aria-sort", sortDirection === "asc" ? "ascending" : "descending");
+        } else {
+          arrow.textContent = "";
+          button.removeAttribute("aria-sort");
+        }
+      });
+    }
+
+    function renderSingleGroupSortHeaders(group) {
+      renderGroupSortHeaders(group);
+    }
+
+    function renderFilters() {
+      elements.filters.forEach((button) => {
+        button.classList.toggle("active", button.dataset.filter === activeFilter);
+      });
+    }
+
+    function renderCounts() {
+      elements.ticketCount.textContent = tickets.length.toString();
+    }
+
+    function render() {
+      renderCounts();
+      renderFilters();
+      renderBoard();
+      if (modalMode === "edit" && !elements.modal.classList.contains("hidden")) {
+        renderTicketPicker();
+      }
+    }
+
+    function setFilter(filter) {
+      activeFilter = filter;
+      render();
+    }
+
+    function toggleSort(key) {
+      if (sortKey === key) {
+        sortDirection = sortDirection === "asc" ? "desc" : "asc";
+      } else {
+        sortKey = key;
+        sortDirection = "asc";
+      }
+      render();
+    }
+
+    function wireBoardSortHandlers() {
+      elements.board.addEventListener("click", (event) => {
+        const button = event.target.closest(".sortable");
+        if (!button) return;
+        toggleSort(button.dataset.sort);
+      });
+    }
+
+    function wireModalSearch() {
+      elements.editSearch.addEventListener("input", () => {
+        searchQuery = elements.editSearch.value;
+        renderTicketPicker();
+      });
+    }
+
+    function seedSelectedTicketForEdit() {
+      if (selectedTicketId && tickets.some((ticket) => ticket.id === selectedTicketId)) return;
+      selectedTicketId = sortTickets([...tickets])[0]?.id ?? null;
+    }
+
+    elements.openAdd.addEventListener("click", openAddFlow);
+    elements.openEdit.addEventListener("click", () => {
+      modalMode = "edit";
+      seedSelectedTicketForEdit();
+      openModal("edit");
+    });
+    elements.closeModal.addEventListener("click", closeModal);
+    elements.cancelAction.addEventListener("click", closeModal);
+    elements.modal.addEventListener("click", (event) => {
+      if (event.target === elements.modal) closeModal();
+    });
+    elements.carForm.addEventListener("submit", handleSave);
+    elements.filters.forEach((button) => {
+      button.addEventListener("click", () => setFilter(button.dataset.filter));
+    });
+    wireBoardSortHandlers();
+    wireModalSearch();
+
+    render();
+  </script>
+</body>
+</html>
