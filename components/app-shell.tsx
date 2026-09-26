@@ -48,7 +48,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
             <div className="brand-copy">
               <strong>Valet Ops</strong>
-              <span>Dashboard shell</span>
             </div>
           </div>
 
@@ -59,7 +58,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               onClick={() => setCollapsed((value) => !value)}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
-              {collapsed ? ">" : "<"}
+              <img
+                className={`sidebar-toggle-icon ${collapsed ? "sidebar-toggle-icon-collapsed" : ""}`}
+                src="/valet-stand/icons/left-arrow-svgrepo-com.svg"
+                alt=""
+                aria-hidden="true"
+              />
             </button>
             <button
               className="sidebar-toggle mobile-only"
@@ -81,20 +85,19 @@ export function AppShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 className={`nav-link ${active ? "nav-link-active" : ""}`}
               >
-                <span className="nav-dot" aria-hidden="true" />
                 <span className="nav-label">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="sidebar-footer">
+        {/* <div className="sidebar-footer">
           <div className="sidebar-card">
             <span className="sidebar-card-label">Mode</span>
             <strong>Local-first</strong>
             <p>Ready for storage and auth later.</p>
           </div>
-        </div>
+        </div> */}
       </aside>
 
       <div className="shell-main">
@@ -107,10 +110,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             Menu
           </button>
-          <div>
-            <p className="eyebrow">Operations hub</p>
-            <h1>{title}</h1>
-          </div>
         </header>
 
         <div className="shell-content">{children}</div>

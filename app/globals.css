@@ -49,6 +49,7 @@ button {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
+  transition: grid-template-columns 220ms ease;
 }
 
 .shell-collapsed {
@@ -58,25 +59,19 @@ button {
 .shell-collapsed .sidebar {
   padding-left: 10px;
   padding-right: 10px;
+  background: transparent;
+  border-right-color: transparent;
+  box-shadow: none;
 }
 
-.shell-collapsed .brand-copy,
-.shell-collapsed .sidebar-card,
-.shell-collapsed .nav-label {
+.shell-collapsed .brand,
+.shell-collapsed .sidebar-nav,
+.shell-collapsed .sidebar-footer {
   display: none;
 }
 
-.shell-collapsed .sidebar-top,
-.shell-collapsed .nav-link {
+.shell-collapsed .sidebar-top {
   justify-content: center;
-}
-
-.shell-collapsed .nav-link {
-  padding: 14px;
-}
-
-.shell-collapsed .sidebar-nav {
-  gap: 10px;
 }
 
 .sidebar {
@@ -91,6 +86,7 @@ button {
   gap: 18px;
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.02);
   z-index: 20;
+  transition: padding 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .sidebar-top {
@@ -150,9 +146,23 @@ button {
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  color: var(--text);
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(186, 208, 255, 0.14);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.sidebar-toggle-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  filter: invert(1);
+  transition: transform 150ms ease;
+}
+
+.sidebar-toggle-icon-collapsed {
+  transform: rotate(180deg);
 }
 
 .mobile-menu-button {
@@ -487,6 +497,12 @@ details[open] .chevron {
 
 .ticket-table tbody tr {
   border-bottom: 1px solid rgba(186, 208, 255, 0.08);
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.ticket-table tbody tr:hover {
+  background: rgba(103, 223, 255, 0.05);
 }
 
 .ticket-table td {
@@ -536,6 +552,33 @@ details[open] .chevron {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.table-actions-heading,
+.table-actions-cell {
+  width: 72px;
+  text-align: center !important;
+}
+
+.delete-button {
+  width: 36px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(255, 127, 127, 0.1);
+  border: 1px solid rgba(255, 127, 127, 0.2);
+}
+
+.delete-button:hover {
+  background: rgba(255, 127, 127, 0.2);
+}
+
+.delete-button img {
+  width: 18px;
+  height: 18px;
+  filter: invert(1);
 }
 
 .mini-button {
@@ -640,6 +683,7 @@ details[open] .chevron {
 }
 
 .field input,
+.field select,
 .list-search {
   width: 100%;
   border-radius: 14px;
@@ -651,14 +695,39 @@ details[open] .chevron {
 }
 
 .field input:focus,
+.field select:focus,
 .list-search:focus {
   border-color: rgba(103, 223, 255, 0.7);
   background: rgba(255, 255, 255, 0.06);
 }
 
+.field select {
+  appearance: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color-scheme: dark;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.field select option {
+  color: var(--text);
+  background: var(--panel-2);
+}
+
 .form-note {
   font-size: 0.9rem;
   line-height: 1.5;
+}
+
+.form-error {
+  color: #ffb6b6;
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 .ticket-picker {
@@ -705,6 +774,12 @@ details[open] .chevron {
   padding: 12px 16px;
   border-radius: 14px;
   font-weight: 800;
+}
+
+.footer-button.transit {
+  color: #c6f0ff;
+  background: rgba(104, 207, 255, 0.14);
+  border: 1px solid rgba(104, 207, 255, 0.24);
 }
 
 .page-shell {

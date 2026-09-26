@@ -629,7 +629,6 @@
         <button class="filter-button" data-filter="transit" type="button">In transit</button>
         <button class="filter-button" data-filter="completed" type="button">Completed</button>
       </div>
-      <div class="sort-hint" id="sortHint">Sorted by Ticket # ascending</div>
     </div>
 
     <p class="message" id="message" role="status" aria-live="polite"></p>
@@ -1183,9 +1182,6 @@
           header.removeAttribute("aria-sort");
         }
       });
-
-      const directionLabel = sortDirection === "asc" ? "ascending" : "descending";
-      elements.sortHint.textContent = `Sorted by ${sortLabel(sortKey)} ${directionLabel}`;
     }
 
     function sortLabel(key) {

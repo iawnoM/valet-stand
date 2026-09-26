@@ -17,6 +17,7 @@ import {
 
 const STORAGE_KEY = "valet-dashboard-tickets";
 const FALLBACK_STORAGE_KEY = "valet-tracker-tickets";
+const OUTLET_OPTIONS = ["ON", "HE", "FS", "BF", "HF"] as const;
 
 type ModalMode = "add" | "edit";
 type FilterValue = "all" | TicketStatus;
@@ -99,7 +100,8 @@ export function Dashboard() {
   const [editSearch, setEditSearch] = useState("");
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "success" | "error">("info");
-  const [form, setForm] = useState({ number: "", outlet: "", parkedBy: "" });
+  const [formError, setFormError] = useState("");
+  const [form, setForm] = useState({ number: "", outlet: "ON", parkedBy: "" });
 
   useEffect(() => {
     setTickets(loadStoredTickets());
@@ -143,7 +145,7 @@ export function Dashboard() {
     if (!ticket) return;
     setForm({
       number: ticket.number,
-      outlet: ticket.outlet,
+      outlet: ticket.outlet || "ON",
       parkedBy: ticket.parkedBy,
     });
   }, [modalMode, modalOpen, selectedTicketId, tickets]);
@@ -167,13 +169,15 @@ export function Dashboard() {
     setModalMode("add");
     setSelectedTicketId(null);
     setEditSearch("");
-    setForm({ number: "", outlet: "", parkedBy: "" });
+    setFormError("");
+    setForm({ number: "", outlet: "ON", parkedBy: "" });
     setModalOpen(true);
   }
 
   function openEditModal() {
     setModalMode("edit");
     setEditSearch("");
+    setFormError("");
     setSelectedTicketId(sortedTickets[0]?.id ?? null);
     setModalOpen(true);
   }
@@ -181,11 +185,13 @@ export function Dashboard() {
   function closeModal() {
     setModalOpen(false);
     setEditSearch("");
+    setFormError("");
     setSelectedTicketId(null);
   }
 
   function openTicket(ticketId: string) {
     setModalMode("edit");
+    setFormError("");
     setSelectedTicketId(ticketId);
     setModalOpen(true);
   }
@@ -198,6 +204,14 @@ export function Dashboard() {
     flash(`Ticket moved to ${statusLabel(status)}.`, "success");
   }
 
+  function deleteTicket(ticketId: string) {
+    const ticket = tickets.find((item) => item.id === ticketId);
+    if (!ticket || !window.confirm(`Delete ticket ${ticket.number}?`)) return;
+
+    persist(tickets.filter((item) => item.id !== ticketId));
+    flash(`Ticket ${ticket.number} deleted.`, "success");
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -206,12 +220,22 @@ export function Dashboard() {
     const parkedBy = normalizeText(form.parkedBy);
 
     if (!number) {
+      setFormError("Ticket number is required.");
       flash("Enter a ticket number before saving.", "error");
       return;
     }
 
+    if (!/^\d+$/.test(number)) {
+      setFormError("Ticket number can only contain digits.");
+      flash("Ticket number can only contain digits.", "error");
+      return;
+    }
+
+    setFormError("");
+
     if (modalMode === "add") {
       if (tickets.some((ticket) => ticket.number === number)) {
+        setFormError(`Ticket ${number} already exists.`);
         flash(`Ticket ${number} already exists.`, "error");
         return;
       }
@@ -238,6 +262,7 @@ export function Dashboard() {
     }
 
     if (tickets.some((ticket) => ticket.id !== selectedTicketId && ticket.number === number)) {
+      setFormError(`Ticket ${number} already exists.`);
       flash(`Ticket ${number} already exists.`, "error");
       return;
     }
@@ -273,7 +298,7 @@ export function Dashboard() {
 
   function renderActions(ticket: Ticket) {
     return (
-      <div className="action-group">
+      <div className="action-group" onClick={(event) => event.stopPropagation()}>
         {ticket.status === "parked" ? (
           <button className="mini-button primary" type="button" onClick={() => setTicketStatus(ticket.id, "transit")}>
             Send to transit
@@ -291,21 +316,15 @@ export function Dashboard() {
           </>
         ) : null}
 
-        <button className="mini-button" type="button" onClick={() => openTicket(ticket.id)}>
-          Edit
-        </button>
       </div>
     );
   }
 
   function ticketRow(ticket: Ticket) {
     return (
-      <tr key={ticket.id}>
+      <tr key={ticket.id} className="ticket-row" onClick={() => openTicket(ticket.id)}>
         <td>
           <span className="ticket-number">{ticket.number}</span>
-        </td>
-        <td>
-          <span className={`status-badge status-${ticket.status}`}>{statusLabel(ticket.status)}</span>
         </td>
         <td>{ticket.outlet || "-"}</td>
         <td>{ticket.parkedBy || "-"}</td>
@@ -314,6 +333,16 @@ export function Dashboard() {
             <span>{formatTimestamp(ticket.updatedAt)}</span>
             {renderActions(ticket)}
           </div>
+        </td>
+        <td className="table-actions-cell" onClick={(event) => event.stopPropagation()}>
+          <button
+            className="delete-button"
+            type="button"
+            onClick={() => deleteTicket(ticket.id)}
+            aria-label={`Delete ticket ${ticket.number}`}
+          >
+            <img src="/valet-stand/icons/trash-bin-svgrepo-com.svg" alt="" aria-hidden="true" />
+          </button>
         </td>
       </tr>
     );
@@ -333,11 +362,6 @@ export function Dashboard() {
                 </button>
               </th>
               <th>
-                <button className="sortable" type="button" onClick={() => toggleSort("status")}>
-                  Status <span className="sort-arrow">{sortKey === "status" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
-                </button>
-              </th>
-              <th>
                 <button className="sortable" type="button" onClick={() => toggleSort("outlet")}>
                   Outlet <span className="sort-arrow">{sortKey === "outlet" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
                 </button>
@@ -352,6 +376,7 @@ export function Dashboard() {
                   Last Updated <span className="sort-arrow">{sortKey === "updatedAt" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
                 </button>
               </th>
+              <th className="table-actions-heading"></th>
             </tr>
           </thead>
           <tbody>{rows.length > 0 ? rows : <tr><td colSpan={5}><div className="empty-state">No tickets in this view.</div></td></tr>}</tbody>
@@ -396,11 +421,6 @@ export function Dashboard() {
                         </button>
                       </th>
                       <th>
-                        <button className="sortable" type="button" onClick={() => toggleSort("status")}>
-                          Status <span className="sort-arrow">{sortKey === "status" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
-                        </button>
-                      </th>
-                      <th>
                         <button className="sortable" type="button" onClick={() => toggleSort("outlet")}>
                           Outlet <span className="sort-arrow">{sortKey === "outlet" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
                         </button>
@@ -415,6 +435,7 @@ export function Dashboard() {
                           Last Updated <span className="sort-arrow">{sortKey === "updatedAt" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
                         </button>
                       </th>
+                      <th className="table-actions-heading"></th>
                     </tr>
                   </thead>
                   <tbody>{section.tickets.map(ticketRow)}</tbody>
@@ -428,6 +449,7 @@ export function Dashboard() {
   }
 
   const pickerTickets = filteredPickerTickets();
+  const selectedTicket = tickets.find((ticket) => ticket.id === selectedTicketId);
 
   return (
     <section className="dashboard">
@@ -460,8 +482,6 @@ export function Dashboard() {
             </button>
           ))}
         </div>
-
-        <div className="sort-hint">Sorted by {sortLabel(sortKey)} {sortDirection === "asc" ? "ascending" : "descending"}</div>
       </div>
 
       <p className={`message ${messageTone}`} aria-live="polite">
@@ -477,34 +497,47 @@ export function Dashboard() {
           <div className="modal-panel" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <h2 id="modalTitle">{modalMode === "add" ? "Add Car" : "Edit Current Car"}</h2>
-              <button className="icon-button" type="button" onClick={closeModal} aria-label="Close modal">
-                x
+              <button className="delete-button" type="button" onClick={closeModal} aria-label="Close modal">
+                <img src="/valet-stand/icons/x-icon.svg" alt="" aria-hidden="true" />
               </button>
             </div>
 
             <div className="modal-body">
               <section className="modal-section">
-                <div className="section-title">{modalMode === "add" ? "Create car" : "Edit selected car"}</div>
                 <form className="form-grid" onSubmit={handleSubmit}>
                   <div className="field">
-                    <label htmlFor="ticketNumber">Ticket number</label>
+                    <label htmlFor="ticketNumber">Ticket number *</label>
                     <input
                       id="ticketNumber"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      aria-required="true"
                       value={form.number}
-                      onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))}
-                      placeholder="Enter ticket number"
+                      onChange={(event) => {
+                        setForm((current) => ({ ...current, number: event.target.value.replace(/\D/g, "") }));
+                        setFormError("");
+                      }}
+                      aria-invalid={Boolean(formError)}
+                      aria-describedby={formError ? "ticketNumberError" : undefined}
+                      placeholder="Required"
                       autoComplete="off"
                     />
+                    {formError ? <div className="form-error" id="ticketNumberError">{formError}</div> : null}
                   </div>
                   <div className="field">
                     <label htmlFor="outlet">Outlet</label>
-                    <input
+                    <select
                       id="outlet"
                       value={form.outlet}
                       onChange={(event) => setForm((current) => ({ ...current, outlet: event.target.value }))}
-                      placeholder="Outlet name"
-                      autoComplete="off"
-                    />
+                    >
+                      {OUTLET_OPTIONS.map((outlet) => (
+                        <option key={outlet} value={outlet}>
+                          {outlet}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="field">
                     <label htmlFor="parkedBy">Parked By</label>
@@ -516,12 +549,20 @@ export function Dashboard() {
                       autoComplete="off"
                     />
                   </div>
-                  <div className="form-note">New cars start in parked status. Status changes happen from the board.</div>
 
                   <div className="modal-footer">
                     <button className="footer-button secondary" type="button" onClick={closeModal}>
                       Cancel
                     </button>
+                    {modalMode === "edit" && selectedTicket?.status === "parked" ? (
+                      <button
+                        className="footer-button transit"
+                        type="button"
+                        onClick={() => setTicketStatus(selectedTicket.id, "transit")}
+                      >
+                        Send to transit
+                      </button>
+                    ) : null}
                     <button className="footer-button primary" type="submit">
                       {modalMode === "add" ? "Save Car" : "Update Car"}
                     </button>
@@ -556,7 +597,8 @@ export function Dashboard() {
                           type="button"
                           onClick={() => {
                             setSelectedTicketId(ticket.id);
-                            setForm({ number: ticket.number, outlet: ticket.outlet, parkedBy: ticket.parkedBy });
+                            setFormError("");
+                            setForm({ number: ticket.number, outlet: ticket.outlet || "ON", parkedBy: ticket.parkedBy });
                             flash(`Editing ticket ${ticket.number}.`, "success");
                           }}
                         >
