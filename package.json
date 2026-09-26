@@ -2,6 +2,7 @@
   "name": "valet-dashboard",
   "private": true,
   "version": "0.1.0",
+  "homepage": "https://iawnom.github.io/valet-stand/",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -19,6 +20,7 @@
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
+    "gh-pages": "^6.3.0",
     "typescript": "latest"
   }
 }
