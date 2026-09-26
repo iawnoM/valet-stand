@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
   createTicketId,
@@ -88,10 +88,21 @@ function compareTickets(a: Ticket, b: Ticket, sortKey: SortKey, direction: "asc"
   return direction === "asc" ? result : -result;
 }
 
+function isCurrentDay(value: string) {
+  const date = new Date(value);
+  const now = new Date();
+
+  return date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate();
+}
+
 export function Dashboard() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterValue>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAllCars, setShowAllCars] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("number");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [modalMode, setModalMode] = useState<ModalMode>("add");
@@ -102,6 +113,8 @@ export function Dashboard() {
   const [messageTone, setMessageTone] = useState<"info" | "success" | "error">("info");
   const [formError, setFormError] = useState("");
   const [form, setForm] = useState({ number: "", outlet: "ON", parkedBy: "" });
+  const [outletOpen, setOutletOpen] = useState(false);
+  const outletSelectRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTickets(loadStoredTickets());
@@ -118,18 +131,35 @@ export function Dashboard() {
     [tickets, sortDirection, sortKey]
   );
 
+  const currentDayTickets = useMemo(
+    () => sortedTickets.filter((ticket) => isCurrentDay(ticket.createdAt)),
+    [sortedTickets]
+  );
+
+  const displayedTickets = showAllCars ? sortedTickets : currentDayTickets;
+
+  const searchFilteredTickets = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return displayedTickets;
+
+    return displayedTickets.filter((ticket) => {
+      const haystack = `${ticket.number} ${ticket.outlet} ${ticket.parkedBy} ${statusLabel(ticket.status)}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [displayedTickets, searchQuery]);
+
   const visibleTickets = useMemo(
-    () => (activeFilter === "all" ? sortedTickets : sortedTickets.filter((ticket) => ticket.status === activeFilter)),
-    [activeFilter, sortedTickets]
+    () => (activeFilter === "all" ? searchFilteredTickets : searchFilteredTickets.filter((ticket) => ticket.status === activeFilter)),
+    [activeFilter, searchFilteredTickets]
   );
 
   const groupedTickets = useMemo(() => {
     return {
-      parked: sortedTickets.filter((ticket) => ticket.status === "parked"),
-      transit: sortedTickets.filter((ticket) => ticket.status === "transit"),
-      completed: sortedTickets.filter((ticket) => ticket.status === "completed"),
+      parked: searchFilteredTickets.filter((ticket) => ticket.status === "parked"),
+      transit: searchFilteredTickets.filter((ticket) => ticket.status === "transit"),
+      completed: searchFilteredTickets.filter((ticket) => ticket.status === "completed"),
     };
-  }, [sortedTickets]);
+  }, [searchFilteredTickets]);
 
   useEffect(() => {
     if (!modalOpen || modalMode !== "edit") return;
@@ -156,6 +186,17 @@ export function Dashboard() {
     return () => window.clearTimeout(timeout);
   }, [message]);
 
+  useEffect(() => {
+    function closeOutletMenu(event: MouseEvent) {
+      if (!outletSelectRef.current?.contains(event.target as Node)) {
+        setOutletOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", closeOutletMenu);
+    return () => document.removeEventListener("mousedown", closeOutletMenu);
+  }, []);
+
   function flash(text: string, tone: "info" | "success" | "error" = "info") {
     setMessage(text);
     setMessageTone(tone);
@@ -170,6 +211,7 @@ export function Dashboard() {
     setSelectedTicketId(null);
     setEditSearch("");
     setFormError("");
+    setOutletOpen(false);
     setForm({ number: "", outlet: "ON", parkedBy: "" });
     setModalOpen(true);
   }
@@ -178,6 +220,7 @@ export function Dashboard() {
     setModalMode("edit");
     setEditSearch("");
     setFormError("");
+    setOutletOpen(false);
     setSelectedTicketId(sortedTickets[0]?.id ?? null);
     setModalOpen(true);
   }
@@ -186,12 +229,14 @@ export function Dashboard() {
     setModalOpen(false);
     setEditSearch("");
     setFormError("");
+    setOutletOpen(false);
     setSelectedTicketId(null);
   }
 
   function openTicket(ticketId: string) {
     setModalMode("edit");
     setFormError("");
+    setOutletOpen(false);
     setSelectedTicketId(ticketId);
     setModalOpen(true);
   }
@@ -287,6 +332,19 @@ export function Dashboard() {
     }
   }
 
+  function sortIndicator(key: SortKey) {
+    if (sortKey !== key) return null;
+
+    return (
+      <img
+        className={`sort-arrow-icon ${sortDirection === "asc" ? "sort-arrow-icon-asc" : "sort-arrow-icon-desc"}`}
+        src="/valet-stand/icons/left-arrow-svgrepo-com.svg"
+        alt=""
+        aria-hidden="true"
+      />
+    );
+  }
+
   function filteredPickerTickets() {
     const query = editSearch.trim().toLowerCase();
     if (!query) return sortedTickets;
@@ -298,7 +356,7 @@ export function Dashboard() {
 
   function renderActions(ticket: Ticket) {
     return (
-      <div className="action-group" onClick={(event) => event.stopPropagation()}>
+      <>
         {ticket.status === "parked" ? (
           <button className="mini-button primary" type="button" onClick={() => setTicketStatus(ticket.id, "transit")}>
             Send to transit
@@ -316,7 +374,7 @@ export function Dashboard() {
           </>
         ) : null}
 
-      </div>
+      </>
     );
   }
 
@@ -331,18 +389,20 @@ export function Dashboard() {
         <td>
           <div className="row-stack">
             <span>{formatTimestamp(ticket.updatedAt)}</span>
-            {renderActions(ticket)}
           </div>
         </td>
         <td className="table-actions-cell" onClick={(event) => event.stopPropagation()}>
-          <button
-            className="delete-button"
-            type="button"
-            onClick={() => deleteTicket(ticket.id)}
-            aria-label={`Delete ticket ${ticket.number}`}
-          >
-            <img src="/valet-stand/icons/trash-bin-svgrepo-com.svg" alt="" aria-hidden="true" />
-          </button>
+          <div className="row-actions">
+            {renderActions(ticket)}
+            <button
+              className="delete-button"
+              type="button"
+              onClick={() => deleteTicket(ticket.id)}
+              aria-label={`Delete ticket ${ticket.number}`}
+            >
+              <img src="/valet-stand/icons/trash-bin-svgrepo-com.svg" alt="" aria-hidden="true" />
+            </button>
+          </div>
         </td>
       </tr>
     );
@@ -358,22 +418,22 @@ export function Dashboard() {
             <tr>
               <th>
                 <button className="sortable" type="button" onClick={() => toggleSort("number")}>
-                  Ticket # <span className="sort-arrow">{sortKey === "number" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
+                  Ticket # <span className="sort-arrow">{sortIndicator("number")}</span>
                 </button>
               </th>
               <th>
                 <button className="sortable" type="button" onClick={() => toggleSort("outlet")}>
-                  Outlet <span className="sort-arrow">{sortKey === "outlet" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
+                  Outlet <span className="sort-arrow">{sortIndicator("outlet")}</span>
                 </button>
               </th>
               <th>
                 <button className="sortable" type="button" onClick={() => toggleSort("parkedBy")}>
-                  Parked By <span className="sort-arrow">{sortKey === "parkedBy" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
+                  Parked By <span className="sort-arrow">{sortIndicator("parkedBy")}</span>
                 </button>
               </th>
               <th>
                 <button className="sortable" type="button" onClick={() => toggleSort("updatedAt")}>
-                  Last Updated <span className="sort-arrow">{sortKey === "updatedAt" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
+                  Last Updated <span className="sort-arrow">{sortIndicator("updatedAt")}</span>
                 </button>
               </th>
               <th className="table-actions-heading"></th>
@@ -395,7 +455,11 @@ export function Dashboard() {
     return (
       <>
         {sections.map((section) => (
-          <details className="status-group" key={section.key} open>
+          <details
+            className="status-group"
+            key={section.key}
+            open={section.tickets.length > 0}
+          >
             <summary>
               <div className="summary-left">
                 <span className="chevron" aria-hidden="true" />
@@ -417,22 +481,22 @@ export function Dashboard() {
                     <tr>
                       <th>
                         <button className="sortable" type="button" onClick={() => toggleSort("number")}>
-                          Ticket # <span className="sort-arrow">{sortKey === "number" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
+                          Ticket # <span className="sort-arrow">{sortIndicator("number")}</span>
                         </button>
                       </th>
                       <th>
                         <button className="sortable" type="button" onClick={() => toggleSort("outlet")}>
-                          Outlet <span className="sort-arrow">{sortKey === "outlet" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
+                          Outlet <span className="sort-arrow">{sortIndicator("outlet")}</span>
                         </button>
                       </th>
                       <th>
                         <button className="sortable" type="button" onClick={() => toggleSort("parkedBy")}>
-                          Parked By <span className="sort-arrow">{sortKey === "parkedBy" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
+                          Parked By <span className="sort-arrow">{sortIndicator("parkedBy")}</span>
                         </button>
                       </th>
                       <th>
                         <button className="sortable" type="button" onClick={() => toggleSort("updatedAt")}>
-                          Last Updated <span className="sort-arrow">{sortKey === "updatedAt" ? (sortDirection === "asc" ? "^" : "v") : ""}</span>
+                          Last Updated <span className="sort-arrow">{sortIndicator("updatedAt")}</span>
                         </button>
                       </th>
                       <th className="table-actions-heading"></th>
@@ -453,11 +517,11 @@ export function Dashboard() {
 
   return (
     <section className="dashboard">
-      <section className="topbar" aria-label="dashboard summary">
-        <div className="summary">
+      {/* <section className="topbar" aria-label="dashboard summary"> */}
+        {/* <div className="summary">
           <div className="summary-label">Ticket count</div>
-          <div className="summary-value">{tickets.length}</div>
-        </div>
+          <div className="summary-value">{displayedTickets.length}</div>
+        </div> */}
 
         <div className="primary-actions">
           <button className="action-button primary" type="button" onClick={openAddModal}>
@@ -467,7 +531,7 @@ export function Dashboard() {
             Edit Current Car
           </button>
         </div>
-      </section>
+      {/* </section> */}
 
       <div className="toolbar" aria-label="table controls">
         <div className="filters" role="tablist" aria-label="status filters">
@@ -482,6 +546,16 @@ export function Dashboard() {
             </button>
           ))}
         </div>
+        <label className="ticket-search">
+          <span className="visually-hidden">Search tickets</span>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search tickets"
+            aria-label="Search tickets"
+          />
+        </label>
       </div>
 
       <p className={`message ${messageTone}`} aria-live="polite">
@@ -491,6 +565,27 @@ export function Dashboard() {
       <section className="board" aria-label="car list">
         {activeFilter === "all" ? groupedBoard() : table()}
       </section>
+
+      <div className="board-tabs" role="tablist" aria-label="car date range">
+        <button
+          className={`board-tab ${!showAllCars ? "active" : ""}`}
+          type="button"
+          role="tab"
+          aria-selected={!showAllCars}
+          onClick={() => setShowAllCars(false)}
+        >
+          Today
+        </button>
+        <button
+          className={`board-tab ${showAllCars ? "active" : ""}`}
+          type="button"
+          role="tab"
+          aria-selected={showAllCars}
+          onClick={() => setShowAllCars(true)}
+        >
+          All cars
+        </button>
+      </div>
 
       {modalOpen ? (
         <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" onClick={closeModal}>
@@ -527,17 +622,38 @@ export function Dashboard() {
                   </div>
                   <div className="field">
                     <label htmlFor="outlet">Outlet</label>
-                    <select
-                      id="outlet"
-                      value={form.outlet}
-                      onChange={(event) => setForm((current) => ({ ...current, outlet: event.target.value }))}
-                    >
-                      {OUTLET_OPTIONS.map((outlet) => (
-                        <option key={outlet} value={outlet}>
-                          {outlet}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="outlet-select" ref={outletSelectRef}>
+                      <button
+                        className={`outlet-select-trigger ${outletOpen ? "outlet-select-trigger-open" : ""}`}
+                        type="button"
+                        aria-haspopup="listbox"
+                        aria-expanded={outletOpen}
+                        onClick={() => setOutletOpen((open) => !open)}
+                      >
+                        <span>{form.outlet}</span>
+                        <span className="outlet-select-arrow" aria-hidden="true" />
+                      </button>
+
+                      {outletOpen ? (
+                        <div className="outlet-select-menu" role="listbox" aria-label="Outlet options">
+                          {OUTLET_OPTIONS.map((outlet) => (
+                            <button
+                              key={outlet}
+                              className={`outlet-select-option ${form.outlet === outlet ? "outlet-select-option-active" : ""}`}
+                              type="button"
+                              role="option"
+                              aria-selected={form.outlet === outlet}
+                              onClick={() => {
+                                setForm((current) => ({ ...current, outlet }));
+                                setOutletOpen(false);
+                              }}
+                            >
+                              {outlet}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                   <div className="field">
                     <label htmlFor="parkedBy">Parked By</label>
@@ -612,8 +728,6 @@ export function Dashboard() {
                       ))
                     )}
                   </div>
-
-                  <div className="form-note">Select a car to load it into the form on the left.</div>
                 </section>
               ) : null}
             </div>
