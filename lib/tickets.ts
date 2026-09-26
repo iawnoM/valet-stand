@@ -5,6 +5,7 @@ export type SortKey = "number" | "status" | "outlet" | "parkedBy" | "updatedAt";
 export interface Ticket {
   id: string;
   number: string;
+  guestName: string;
   outlet: string;
   parkedBy: string;
   status: TicketStatus;
@@ -75,6 +76,7 @@ export function migrateTicket(raw: Partial<Ticket> & Record<string, unknown> = {
   return {
     id: typeof raw.id === "string" && raw.id ? raw.id : createTicketId(),
     number,
+    guestName: normalizeText(raw.guestName),
     outlet: normalizeText(raw.outlet),
     parkedBy: normalizeText(raw.parkedBy),
     status,

@@ -112,7 +112,7 @@ export function Dashboard() {
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "success" | "error">("info");
   const [formError, setFormError] = useState("");
-  const [form, setForm] = useState({ number: "", outlet: "ON", parkedBy: "" });
+  const [form, setForm] = useState({ number: "", guestName: "", outlet: "ON", parkedBy: "" });
   const [outletOpen, setOutletOpen] = useState(false);
   const outletSelectRef = useRef<HTMLDivElement>(null);
 
@@ -143,7 +143,7 @@ export function Dashboard() {
     if (!query) return displayedTickets;
 
     return displayedTickets.filter((ticket) => {
-      const haystack = `${ticket.number} ${ticket.outlet} ${ticket.parkedBy} ${statusLabel(ticket.status)}`.toLowerCase();
+      const haystack = `${ticket.number} ${ticket.guestName} ${ticket.outlet} ${ticket.parkedBy} ${statusLabel(ticket.status)}`.toLowerCase();
       return haystack.includes(query);
     });
   }, [displayedTickets, searchQuery]);
@@ -175,6 +175,7 @@ export function Dashboard() {
     if (!ticket) return;
     setForm({
       number: ticket.number,
+      guestName: ticket.guestName,
       outlet: ticket.outlet || "ON",
       parkedBy: ticket.parkedBy,
     });
@@ -212,7 +213,7 @@ export function Dashboard() {
     setEditSearch("");
     setFormError("");
     setOutletOpen(false);
-    setForm({ number: "", outlet: "ON", parkedBy: "" });
+    setForm({ number: "", guestName: "", outlet: "ON", parkedBy: "" });
     setModalOpen(true);
   }
 
@@ -261,6 +262,7 @@ export function Dashboard() {
     event.preventDefault();
 
     const number = normalizeTicketNumber(form.number);
+    const guestName = normalizeText(form.guestName);
     const outlet = normalizeText(form.outlet);
     const parkedBy = normalizeText(form.parkedBy);
 
@@ -288,6 +290,7 @@ export function Dashboard() {
       const nextTicket: Ticket = {
         id: createTicketId(),
         number,
+        guestName,
         outlet,
         parkedBy,
         status: "parked",
@@ -314,7 +317,7 @@ export function Dashboard() {
 
     const next = tickets.map((ticket) =>
       ticket.id === selectedTicketId
-        ? { ...ticket, number, outlet, parkedBy, updatedAt: new Date().toISOString() }
+        ? { ...ticket, number, guestName, outlet, parkedBy, updatedAt: new Date().toISOString() }
         : ticket
     );
 
@@ -349,7 +352,7 @@ export function Dashboard() {
     const query = editSearch.trim().toLowerCase();
     if (!query) return sortedTickets;
     return sortedTickets.filter((ticket) => {
-      const haystack = `${ticket.number} ${ticket.outlet} ${ticket.parkedBy} ${statusLabel(ticket.status)}`.toLowerCase();
+      const haystack = `${ticket.number} ${ticket.guestName} ${ticket.outlet} ${ticket.parkedBy} ${statusLabel(ticket.status)}`.toLowerCase();
       return haystack.includes(query);
     });
   }
@@ -384,6 +387,7 @@ export function Dashboard() {
         <td>
           <span className="ticket-number">{ticket.number}</span>
         </td>
+        <td>{ticket.guestName || "-"}</td>
         <td>{ticket.outlet || "-"}</td>
         <td>{ticket.parkedBy || "-"}</td>
         <td>
@@ -421,6 +425,7 @@ export function Dashboard() {
                   Ticket # <span className="sort-arrow">{sortIndicator("number")}</span>
                 </button>
               </th>
+              <th>Guest Name</th>
               <th>
                 <button className="sortable" type="button" onClick={() => toggleSort("outlet")}>
                   Outlet <span className="sort-arrow">{sortIndicator("outlet")}</span>
@@ -439,7 +444,7 @@ export function Dashboard() {
               <th className="table-actions-heading"></th>
             </tr>
           </thead>
-          <tbody>{rows.length > 0 ? rows : <tr><td colSpan={5}><div className="empty-state">No tickets in this view.</div></td></tr>}</tbody>
+          <tbody>{rows.length > 0 ? rows : <tr><td colSpan={6}><div className="empty-state">No tickets in this view.</div></td></tr>}</tbody>
         </table>
       </div>
     );
@@ -484,6 +489,7 @@ export function Dashboard() {
                           Ticket # <span className="sort-arrow">{sortIndicator("number")}</span>
                         </button>
                       </th>
+                      <th>Guest Name</th>
                       <th>
                         <button className="sortable" type="button" onClick={() => toggleSort("outlet")}>
                           Outlet <span className="sort-arrow">{sortIndicator("outlet")}</span>
@@ -621,6 +627,16 @@ export function Dashboard() {
                     {formError ? <div className="form-error" id="ticketNumberError">{formError}</div> : null}
                   </div>
                   <div className="field">
+                    <label htmlFor="guestName">Guest Name</label>
+                    <input
+                      id="guestName"
+                      value={form.guestName}
+                      onChange={(event) => setForm((current) => ({ ...current, guestName: event.target.value }))}
+                      placeholder="Guest name"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="field">
                     <label htmlFor="outlet">Outlet</label>
                     <div className="outlet-select" ref={outletSelectRef}>
                       <button
@@ -694,7 +710,7 @@ export function Dashboard() {
                     value={editSearch}
                     onChange={(event) => setEditSearch(event.target.value)}
                     type="text"
-                    placeholder="Search by ticket number, outlet, or parked by"
+                    placeholder="Search by ticket, guest, outlet, or parked by"
                     autoComplete="off"
                   />
 
@@ -714,13 +730,14 @@ export function Dashboard() {
                           onClick={() => {
                             setSelectedTicketId(ticket.id);
                             setFormError("");
-                            setForm({ number: ticket.number, outlet: ticket.outlet || "ON", parkedBy: ticket.parkedBy });
+                            setForm({ number: ticket.number, guestName: ticket.guestName, outlet: ticket.outlet || "ON", parkedBy: ticket.parkedBy });
                             flash(`Editing ticket ${ticket.number}.`, "success");
                           }}
                         >
                           <strong>{ticket.number}</strong>
                           <span>
                             {statusLabel(ticket.status)}
+                            {ticket.guestName ? ` | ${ticket.guestName}` : ""}
                             {ticket.outlet ? ` | ${ticket.outlet}` : ""}
                             {ticket.parkedBy ? ` | ${ticket.parkedBy}` : ""}
                           </span>
